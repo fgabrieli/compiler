@@ -1,7 +1,7 @@
 var str = '2+3+8+9+15-10';
 
 function isExpr(input, subtree) {
-    return (subtree && subtree.type == 'expr') || (input.match(/^\d+[\+]\d+/) != null);
+    return (subtree && subtree.type == 'expr') || (input.match(/^\d+[\+|\-]\d+/) != null);
 }
 
 function parseExpr(input, node) {
