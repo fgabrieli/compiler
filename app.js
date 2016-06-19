@@ -1,5 +1,5 @@
 /**
- * Author: Fernando Gabrieli
+ * @author Fernando Gabrieli - fgabrieli at gmail
  */
 
 var parsers = require('./parsers.js');
