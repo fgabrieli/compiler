@@ -1,3 +1,7 @@
+/**
+ * Author: Fernando Gabrieli
+ */
+
 var extend = require('extend');
 
 function TreeNode(type, data) {
