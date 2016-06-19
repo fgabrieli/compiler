@@ -23,9 +23,15 @@ function InfixParser() {
 };
 
 extend(InfixParser.prototype, Parser, {
+    sanitize : function(input) {
+        return input.replace(/\s/g, '');
+    },
+    
     parse : function(input, subtree) {
         var parsed = {};
 
+        input = this.sanitize(input);
+        
         if (this.isExpr(input, subtree)) {
             parsed = this.parseExpr(input, subtree);
 
@@ -38,7 +44,7 @@ extend(InfixParser.prototype, Parser, {
     },
 
     isExpr : function(input, subtree) {
-        return (subtree && subtree.type == 'expr') || (input.match(/^\d+[\+|\-]\d+/) != null);
+        return (subtree && subtree.type == 'expr') || (input.match(/^\d+[\+|\-|\*|\/]\d+/) != null);
     },
 
     parseExpr : function(input, node) {
@@ -47,7 +53,7 @@ extend(InfixParser.prototype, Parser, {
         var subtree = new TreeNode('expr');
 
         if (node) {
-            regex = /^([\+|-])(\d+)/;
+            regex = /^([\+|\-|\*|\/])(\d+)/;
 
             match = input.match(regex);
             if (match == null) {
@@ -60,7 +66,7 @@ extend(InfixParser.prototype, Parser, {
 
             subtree.nodes.push(node);
         } else {
-            regex = /^(\d+)([\+|-])(\d+)/;
+            regex = /^(\d+)([\+|\-|\*|\/])(\d+)/;
 
             match = input.match(regex);
 
