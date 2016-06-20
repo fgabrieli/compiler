@@ -15,8 +15,9 @@ var availableParsers = [ new parsers.GParser(), new parsers.InfixParser() ];
     //var str = 'i--xwe';
 
     var gParser = new parsers.GParser();
-    console.log(gParser.parse(str));
-
+    var tree = gParser.parse(str);
+    console.log(tree);
+    
 //    for (var i = 0; i < availableParsers.length; i++) {
 //        var tree = availableParsers[i].parse(str);
 //        if (tree) {

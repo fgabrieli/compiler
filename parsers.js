@@ -61,8 +61,7 @@ extend(InfixParser.prototype, Parser, {
 
             match = input.match(regex);
             if (match == null) {
-                var error = 'Syntax error at "' + input + '", invalid operator or non-digit used';
-                throw error;
+                throw 'Syntax error at "' + input + '", invalid operator or non-digit used';
             }
 
             operator = match[1];
@@ -99,7 +98,7 @@ function GParser() {
     this.id = 'GParser';
 }
 
-extend(GParser.prototype, InfixParser.prototype, {
+extend(GParser.prototype, Parser, {
     isReserved : function(input) {
         return this.isFor(input);
     },
@@ -108,11 +107,135 @@ extend(GParser.prototype, InfixParser.prototype, {
         return !this.isReserved(input) && input.match(/[a-z]+/) != null;
     },
 
-    parseExpr : function(input, node) {
-        return {
-            subtree : new TreeNode('expr', input),
-            input : ''
+    isAssignment : function(input) {
+        return input.match(/=/);
+    },
+
+    isDigit : function(input) {
+        return input.match(/\d+/) != null;
+    },
+
+    isVar : function(input) {
+        return input.match(/[a-z]+/) != null;
+    },
+
+    parseVar : function(input, node) {
+        return new TreeNode('var', input);
+    },
+
+    parseAssignment : function(input, node) {
+        var parts = input.match(/(.*?)=(.*)$/);
+
+        var subtree = new TreeNode('expr');
+
+        var left = parts[1];
+        if (this.isVar(left)) {
+            subtree.nodes.push(this.parseVar(left));
+        } else {
+            if (this.isDigit(left)) {
+                subtree.nodes.push(new TreeNode('digit', left));
+            } else {
+                throw 'Malformed assignment: ' + input;
+            }
         }
+
+        subtree.nodes.push(new TreeNode('='));
+
+        var right = parts[2];
+        if (this.isVar(right)) {
+            subtree.nodes.push(this.parseVar(right));
+        } else {
+            if (this.isDigit(right)) {
+                subtree.nodes.push(new TreeNode('digit', right));
+            } else {
+                throw 'Malformed assignment: ' + input;
+            }
+        }
+
+        return {
+            input : input.replace(/(.*?)=(.*)$/, ''),
+            subtree : subtree
+        }
+    },
+
+    isInc : function(input) {
+        return input.match(/\+\+/);
+    },
+    
+    parseInc : function(input, node) {
+        var parts = input.match(/([a-z]+)\+\+/);
+        if (parts === null)
+            throw 'Malformed incremental expression ++: ', input;
+
+        var subtree = new TreeNode('expr');
+        
+        subtree.nodes.push(this.parseVar(parts[1]));
+        
+        subtree.nodes.push('+');
+
+        subtree.nodes.push('+');
+        
+        return {
+            subtree : subtree,
+            input : input.replace(/([a-z]+)\+\+/, '')
+        }
+    },
+    
+    isDec : function(input) {
+        return input.match(/\-\-/);
+    },
+
+    isCompare : function(input) {
+        return input.match(/>|</) != null;
+    },
+
+    parseCompare : function(input, node) {
+        var parts = input.match(/(.*?)([<|>])(.*)$/);
+
+        var subtree = new TreeNode('expr');
+
+        var left = parts[1];
+        if (this.isVar(left)) {
+            subtree.nodes.push(this.parseVar(left));
+        } else {
+            if (this.isDigit(left)) {
+                subtree.nodes.push(new TreeNode('digit', left));
+            } else {
+                throw 'Malformed assignment: ' + input;
+            }
+        }
+
+        subtree.nodes.push(new TreeNode(parts[2]));
+
+        var right = parts[3];
+        if (this.isVar(right)) {
+            subtree.nodes.push(this.parseVar(right));
+        } else {
+            if (this.isDigit(right)) {
+                subtree.nodes.push(new TreeNode('digit', right));
+            } else {
+                throw 'Malformed assignment: ' + input;
+            }
+        }
+
+        return {
+            input : input.replace(/(.*?)([<|>])(.*)$/, ''),
+            subtree : subtree
+        }
+    },
+
+    parseExpr : function(input, node) {
+        if (this.isAssignment(input)) {
+            return this.parseAssignment(input, node);
+        } else if (this.isCompare(input)) {
+            return this.parseCompare(input, node);
+        } else if (this.isInc(input)) {
+            return this.parseInc(input, node);
+        } else if (this.isDec(input)) {
+            return this.parseDec(input, node);
+        }
+
+        throw 'Unrecognized expression: ' + input;
     },
 
     isFor : function(input) {
@@ -180,22 +303,19 @@ extend(GParser.prototype, InfixParser.prototype, {
     },
 
     parse : function(input, subtree) {
-        var t = this;
-        return InfixParser.prototype.parse(input, subtree) || (function() {
-            var parsed = {};
+        var parsed = {};
 
-            if (t.isExpr(input, subtree)) {
-                parsed = t.parseExpr(input, subtree);
-            } else if (t.isFor(input, subtree)) {
-                parsed = t.parseFor(input, subtree);
-            }
+        if (this.isExpr(input, subtree)) {
+            parsed = this.parseExpr(input, subtree);
+        } else if (this.isFor(input, subtree)) {
+            parsed = this.parseFor(input, subtree);
+        }
 
-            if (parsed.input && parsed.input.length > 0) {
-                return t.parse(parsed.input, parsed.subtree);
-            }
+        if (parsed.input && parsed.input.length > 0) {
+            return this.parse(parsed.input, parsed.subtree);
+        }
 
-            return parsed.subtree || false;
-        })();
+        return parsed.subtree || false;
     }
 });
 
