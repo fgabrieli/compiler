@@ -1,3 +1,9 @@
+/**
+ * Regular expression compiler
+ * 
+ * @author Fernando Gabrieli, fgabrieli at github
+ */
+
 //function RegexParser() {
 //    var stack = [];
 //
