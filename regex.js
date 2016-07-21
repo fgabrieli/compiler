@@ -1,3 +1,5 @@
+var extend = require('extend');
+
 function TreeNode(type, data) {
     this.type = type ? type : '';
 
@@ -18,6 +20,177 @@ function TreeNode(type, data) {
     }
 }
 
+var regexParser = new RegexParser();
+
+var symbolTable = [];
+var lastSymbol = 0;
+
+function Symbol(data) {
+    symbolTable.push(this);
+
+    this.id = '<s' + lastSymbol++ + '>';
+
+    this.data = data;
+
+    this.tree = regexParser.parse(data);
+}
+
+function LexicalAnalyzer(strToAnalyze) {
+    var str = strToAnalyze;
+
+    this.analyze = function() {
+        analyzeAdd();
+
+        analyzeOr();
+        
+        analyzeKleene();
+    }
+
+    var currentIdx = 0;
+
+    function analyzeAdd() {
+        resetIdx();
+
+        do {
+            if (RegexParser.prototype.isAdd(lexeme())) {
+                prev();
+                var regex = lexeme();
+
+                next();
+                regex += lexeme();
+
+                console.log('regex', regex);
+
+                var symbol = new Symbol(regex)
+                str = str.replace(regex, symbol.id);
+
+                return analyzeAdd();
+            }
+        } while (next());
+    }
+    
+    function analyzeOr() {
+        resetIdx();
+
+        do {
+            if (RegexParser.prototype.isOr(lexeme())) {
+                prev();
+                var regex = lexeme();
+
+                next();
+                regex += lexeme();
+                
+                next();
+                regex += lexeme();
+
+                console.log('regex', regex);
+
+                var symbol = new Symbol(regex)
+                str = str.replace(regex, symbol.id);
+
+                return analyzeOr();
+            }
+        } while (next());
+    }
+    
+    function analyzeKleene() {
+        resetIdx();
+
+        do {
+            if (RegexParser.prototype.isKleene(lexeme())) {
+                prev();
+                var regex = lexeme();
+
+                next();
+                regex += lexeme();
+
+                console.log('regex', regex);
+
+                var symbol = new Symbol(regex)
+                str = str.replace(regex, symbol.id);
+
+                return analyzeAdd();
+            }
+        } while (next());
+    }
+
+    function resetIdx() {
+        currentIdx = 0;
+    }
+
+    function prev() {
+        if (currentIdx === 0)
+            return false;
+
+        if (str[--currentIdx] == '>') {
+            while (str[--currentIdx] != '<') {
+            }
+            ;
+        }
+
+        // console.log('prev', str.substr(currentIdx), currentIdx);
+
+        return true;
+    }
+
+    function next() {
+        if (currentIdx > str.length)
+            return false;
+
+        if (str[currentIdx++] == '<') {
+            while (str[currentIdx++] != '>') {
+            }
+            ;
+        }
+
+        // console.log('next', str.substr(currentIdx), currentIdx);
+
+        return true;
+    }
+
+    function lexeme() {
+        var i = currentIdx;
+
+        var start = i;
+
+        if (str[i++] == '<') {
+            while (str[i++] != '>') {
+            }
+            ;
+        }
+
+        // console.log(start, currentIdx, str.substr(start, currentIdx -
+        // start));
+
+        return str.substr(start, i - start);
+    }
+
+    // function analyzeOr() {
+    // resetLexemeIndex();
+    //        
+    // console.log(str);
+    //
+    // var lexeme = getNextLexeme();
+    // while(lexeme) {
+    // if (RegexParser.prototype.isOr(lexeme)) {
+    // getPrevLexeme();
+    //                
+    // var regex = getPrevLexeme();
+    //                
+    // console.log(regex);
+    //                
+    // var symbol = new Symbol(regex)
+    //              
+    // str = str.replace(regex, symbol.id);
+    //                
+    // return analyzeOr();
+    // }
+    //            
+    // lexeme = getNextLexeme();
+    // }
+    // }
+}
+
 function RegexParser() {
     var stack = [];
 
@@ -35,15 +208,15 @@ function RegexParser() {
         var parent = false, prevNode = false, addNode = false;
         var char = nextChar();
         do {
-            if (isOr(char)) {
+            if (this.isOr(char)) {
                 node = or();
 
                 addNode = true;
-            } else if (isAdd(char)) {
+            } else if (this.isAdd(char)) {
                 node = add();
 
                 addNode = true;
-            } else if (isKleene(char)) {
+            } else if (this.isKleene(char)) {
                 node = kleene();
 
                 addNode = true;
@@ -105,19 +278,30 @@ function RegexParser() {
             opn1 : stack.shift()
         })
     }
+}
 
-    function isKleene(c) {
+extend(RegexParser.prototype, {
+    /**
+     * Abstract
+     */
+    isKleene : function(c) {
         return c === '*';
-    }
+    },
 
-    function isAdd(c) {
+    /**
+     * Abstract
+     */
+    isAdd : function(c) {
         return c === '+';
-    }
+    },
 
-    function isOr(c) {
+    /**
+     * Abstract
+     */
+    isOr : function(c) {
         return c === '|';
     }
-}
+})
 
 // NFA's have states (which are actually nodes of a graph since the nfa itself
 // is a graph)
@@ -136,7 +320,7 @@ function State(type, char) {
     this.getNext = function() {
         return this.states;
     }
-    
+
     this.hasNext = function() {
         return this.states && this.states.length > 0;
     }
@@ -145,19 +329,19 @@ function State(type, char) {
      * Print tree for the parsed regex.
      */
     var printed = [];
-    
+
     this.print = function() {
         printed = [];
-        
+
         printStates(this);
     }
-    
+
     function printStates(state) {
         if (printed.indexOf(state) !== -1)
             return;
-        
+
         console.log(state.type, state.char, state.states);
-        
+
         printed.push(state);
 
         for (var i = 0; i < state.states.length; i++) {
@@ -167,14 +351,14 @@ function State(type, char) {
 
     this.test = function(str) {
         console.log('checking state', this);
-        
+
         if (str.length == 0)
             return true;
 
         if (this.isEClosure() && this.hasNext()) {
             var nextStates = this.getNext();
             for (var j = 0; j < nextStates.length; j++) {
-                if(nextStates[j].test(str)) {
+                if (nextStates[j].test(str)) {
                     return true;
                 }
             }
@@ -199,7 +383,7 @@ function NFA() {
     this.getNfa = function() {
         return nfa;
     }
-    
+
     this.createFromSyntaxTree = function(syntaxTree) {
         // instead of an initial state i just set an e-closure
         nfa = new State('e-closure');
@@ -208,7 +392,7 @@ function NFA() {
 
         return nfa;
     }
-    
+
     this.test = function(str) {
         return nfa.test(str);
     }
@@ -233,7 +417,7 @@ function NFA() {
         for (var i = 0; i < node.nodes.length; i++) {
             lastState = addStates(lastState, node.nodes[i]);
         }
-        
+
         return lastState;
     }
 
@@ -255,49 +439,51 @@ function NFA() {
         var e3 = new State('e-closure');
         stateOpn1.states.push(e3);
         stateOpn2.states.push(e3);
-        
+
         e3.states.push(prevState);
 
         return e3;
     }
-    
+
     function kleene(prevState, opn1) {
         var opnState = new State('alphabet', opn1);
         prevState.states.push(opnState);
-        
+
         var e1 = new State('e-closure');
         opnState.states.push(e1);
-        
+
         var e2 = new State('e-closure');
         prevState.states.push(e2);
-        
+
         e1.states.push(prevState);
-        
+
         return e1;
     }
-    
+
     function add(prevState, opn1) {
         var opnState = new State('alphabet', opn1);
         prevState.states.push(opnState);
-        
+
         var e1 = new State('e-closure');
         e1.states.push(prevState);
-        
+
         opnState.states.push(e1);
-        
+
         return e1;
     }
 }
 
+var lexAnalyzer = new LexicalAnalyzer('a|b|cdmpp*');
+var regex = lexAnalyzer.analyze();
+
 var parser = new RegexParser();
+var syntaxTree = parser.parse(regex);
+syntaxTree.print();
 
-var syntaxTree = parser.parse('t|nx+');
-//syntaxTree.print();
-
-var nfa = new NFA();
-nfa.createFromSyntaxTree(syntaxTree);
-
-console.log(nfa.getNfa());
-
-console.log(nfa.test('qtx'));
-
+/*
+ * var nfa = new NFA(); nfa.createFromSyntaxTree(syntaxTree);
+ * 
+ * console.log(nfa.getNfa());
+ * 
+ * console.log(nfa.test('qtx'));
+ */
