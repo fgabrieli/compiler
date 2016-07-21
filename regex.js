@@ -141,11 +141,27 @@ function State(type, char) {
         return this.states && this.states.length > 0;
     }
 
+    /**
+     * Print tree for the parsed regex.
+     */
+    var printed = [];
+    
     this.print = function() {
-        console.log(this);
+        printed = [];
+        
+        printStates(this);
+    }
+    
+    function printStates(state) {
+        if (printed.indexOf(state) !== -1)
+            return;
+        
+        console.log(state.type, state.char, state.states);
+        
+        printed.push(state);
 
-        for (var i = 0; i < this.states.length; i++) {
-            this.print.call(this.states[i]);
+        for (var i = 0; i < state.states.length; i++) {
+            printStates(state.states[i]);
         }
     }
 
@@ -180,6 +196,10 @@ function State(type, char) {
 function NFA() {
     var nfa = false;
 
+    this.getNfa = function() {
+        return nfa;
+    }
+    
     this.createFromSyntaxTree = function(syntaxTree) {
         // instead of an initial state i just set an e-closure
         nfa = new State('e-closure');
@@ -198,23 +218,23 @@ function NFA() {
      *            tree root node
      */
     function addStates(state, node) {
-        var newState = false;
+        var lastState = false;
 
         if (node.type == 'or') {
-            newState = or(state, node.data.opn1, node.data.opn2);
+            lastState = or(state, node.data.opn1, node.data.opn2);
         } else if (node.type == 'add') {
-            newState = add(state, node.data.opn1);
+            lastState = add(state, node.data.opn1);
         } else if (node.type == 'kleene') {
-            newState = kleene(state, node.data.opn1);
+            lastState = kleene(state, node.data.opn1);
+        } else {
+            lastState = state;
         }
 
-        if (newState) {
-            for (var i = 0; i < node.nodes.length; i++) {
-                addStates(newState, node.nodes[i]);
-            }
-        } else {
-            throw 'Invalid state in addStates';
+        for (var i = 0; i < node.nodes.length; i++) {
+            lastState = addStates(lastState, node.nodes[i]);
         }
+        
+        return lastState;
     }
 
     /**
@@ -240,17 +260,44 @@ function NFA() {
 
         return e3;
     }
+    
+    function kleene(prevState, opn1) {
+        var opnState = new State('alphabet', opn1);
+        prevState.states.push(opnState);
+        
+        var e1 = new State('e-closure');
+        opnState.states.push(e1);
+        
+        var e2 = new State('e-closure');
+        prevState.states.push(e2);
+        
+        e1.states.push(prevState);
+        
+        return e1;
+    }
+    
+    function add(prevState, opn1) {
+        var opnState = new State('alphabet', opn1);
+        prevState.states.push(opnState);
+        
+        var e1 = new State('e-closure');
+        e1.states.push(prevState);
+        
+        opnState.states.push(e1);
+        
+        return e1;
+    }
 }
 
 var parser = new RegexParser();
-// var tree = parser.parse('a|bc+d*');
 
-var syntaxTree = parser.parse('t|q');
-
-// parser.print(syntaxTree);
+var syntaxTree = parser.parse('t|nx+');
+//syntaxTree.print();
 
 var nfa = new NFA();
 nfa.createFromSyntaxTree(syntaxTree);
 
-console.log(nfa.test('tqtqtqtqtqttqtq'));
+console.log(nfa.getNfa());
+
+console.log(nfa.test('qtx'));
 
