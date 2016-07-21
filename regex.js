@@ -1,3 +1,93 @@
+//function RegexParser() {
+//    var stack = [];
+//
+//    var tree = {};
+//
+//    var str = '';
+//
+//    this.parse = function(strToParse) {
+//        if (typeof strToParse === 'undefined' || strToParse.length === 0) {
+//            throw 'Regex to be parsed is not valid';
+//        }
+//
+//        init(strToParse);
+//
+//        var parent = false, prevNode = false, addNode = false;
+//        var char = nextChar();
+//        do {
+//            if (this.isOr(char)) {
+//                node = or();
+//
+//                addNode = true;
+//            } else if (this.isAdd(char)) {
+//                node = add();
+//
+//                addNode = true;
+//            } else if (this.isKleene(char)) {
+//                node = kleene();
+//
+//                addNode = true;
+//            } else {
+//                stack.push(char);
+//            }
+//
+//            if (addNode) {
+//                if (!prevNode) {
+//                    prevNode = node;
+//
+//                    // only for the case when the regex has one node for it's
+//                    // syntax tree, say "a|b"
+//                    parent = prevNode;
+//                } else {
+//                    parent = new TreeNode('empty'); // connect pair of nodes
+//                    parent.nodes.push(prevNode, node);
+//                    prevNode = parent;
+//                }
+//
+//                addNode = false;
+//            }
+//
+//            char = nextChar();
+//        } while (char);
+//
+//        tree = parent;
+//
+//        return tree;
+//    }
+//
+//    function init(strToParse) {
+//        str = strToParse;
+//        charIndex = 0;
+//        stack = [];
+//    }
+//
+//    var charIndex = 0;
+//
+//    function nextChar() {
+//        return charIndex < str.length ? str[charIndex++] : false;
+//    }
+//
+//    function or() {
+//        return new TreeNode('or', {
+//            opn1 : stack.shift(),
+//            opn2 : nextChar()
+//        });
+//    }
+//
+//    function add() {
+//        return new TreeNode('add', {
+//            opn1 : stack.shift()
+//        })
+//    }
+//
+//    function kleene() {
+//        return new TreeNode('kleene', {
+//            opn1 : stack.shift()
+//        })
+//    }
+//}
+
+
 var extend = require('extend');
 
 function TreeNode(type, data) {
@@ -31,19 +121,25 @@ function Symbol(data) {
     this.id = '<s' + lastSymbol++ + '>';
 
     this.data = data;
+}
 
-    this.tree = regexParser.parse(data);
+function getSymbol(lexeme) {
+    var entry = parseFloat(lexeme.substr(2).replace('>', ''));
+    
+    return symbolTable[entry];
 }
 
 function LexicalAnalyzer(strToAnalyze) {
     var str = strToAnalyze;
 
     this.analyze = function() {
-        analyzeAdd();
+        analyzeAdd.apply(this);
 
-        analyzeOr();
+        analyzeOr.apply(this);
         
-        analyzeKleene();
+        analyzeKleene.apply(this);
+        
+        return str;
     }
 
     var currentIdx = 0;
@@ -52,73 +148,71 @@ function LexicalAnalyzer(strToAnalyze) {
         resetIdx();
 
         do {
-            if (RegexParser.prototype.isAdd(lexeme())) {
-                prev();
-                var regex = lexeme();
+            if (RegexParser.prototype.isAdd(this.lexeme())) {
+                this.prev();
+                var regex = this.lexeme();
 
-                next();
-                regex += lexeme();
-
-                console.log('regex', regex);
+                this.next();
+                regex += this.lexeme();
 
                 var symbol = new Symbol(regex)
                 str = str.replace(regex, symbol.id);
 
-                return analyzeAdd();
+                return analyzeAdd.apply(this);
             }
-        } while (next());
+        } while (this.next());
     }
     
     function analyzeOr() {
         resetIdx();
 
         do {
-            if (RegexParser.prototype.isOr(lexeme())) {
-                prev();
-                var regex = lexeme();
+            if (RegexParser.prototype.isOr(this.lexeme())) {
+                this.prev();
+                var regex = this.lexeme();
 
-                next();
-                regex += lexeme();
+                this.next();
+                regex += this.lexeme();
                 
-                next();
-                regex += lexeme();
+                this.next();
+                regex += this.lexeme();
 
                 console.log('regex', regex);
 
                 var symbol = new Symbol(regex)
                 str = str.replace(regex, symbol.id);
 
-                return analyzeOr();
+                return analyzeOr.apply(this);
             }
-        } while (next());
+        } while (this.next());
     }
     
     function analyzeKleene() {
         resetIdx();
 
         do {
-            if (RegexParser.prototype.isKleene(lexeme())) {
-                prev();
-                var regex = lexeme();
+            if (RegexParser.prototype.isKleene(this.lexeme())) {
+                this.prev();
+                var regex = this.lexeme();
 
-                next();
-                regex += lexeme();
+                this.next();
+                regex += this.lexeme();
 
                 console.log('regex', regex);
 
                 var symbol = new Symbol(regex)
                 str = str.replace(regex, symbol.id);
 
-                return analyzeAdd();
+                return analyzeKleene.apply(this);
             }
-        } while (next());
+        } while (this.next());
     }
 
     function resetIdx() {
         currentIdx = 0;
     }
 
-    function prev() {
+    this.prev = function() {
         if (currentIdx === 0)
             return false;
 
@@ -133,7 +227,7 @@ function LexicalAnalyzer(strToAnalyze) {
         return true;
     }
 
-    function next() {
+    this.next = function() {
         if (currentIdx > str.length)
             return false;
 
@@ -148,7 +242,7 @@ function LexicalAnalyzer(strToAnalyze) {
         return true;
     }
 
-    function lexeme() {
+    this.lexeme = function() {
         var i = currentIdx;
 
         var start = i;
@@ -159,37 +253,14 @@ function LexicalAnalyzer(strToAnalyze) {
             ;
         }
 
-        // console.log(start, currentIdx, str.substr(start, currentIdx -
-        // start));
-
         return str.substr(start, i - start);
     }
-
-    // function analyzeOr() {
-    // resetLexemeIndex();
-    //        
-    // console.log(str);
-    //
-    // var lexeme = getNextLexeme();
-    // while(lexeme) {
-    // if (RegexParser.prototype.isOr(lexeme)) {
-    // getPrevLexeme();
-    //                
-    // var regex = getPrevLexeme();
-    //                
-    // console.log(regex);
-    //                
-    // var symbol = new Symbol(regex)
-    //              
-    // str = str.replace(regex, symbol.id);
-    //                
-    // return analyzeOr();
-    // }
-    //            
-    // lexeme = getNextLexeme();
-    // }
-    // }
+    
+    this.isSymbol = function() {
+        return str[currentIdx] == '<';
+    }
 }
+
 
 function RegexParser() {
     var stack = [];
@@ -205,23 +276,29 @@ function RegexParser() {
 
         init(strToParse);
 
+        var lexAnalyzer = new LexicalAnalyzer(strToParse);
+        
         var parent = false, prevNode = false, addNode = false;
-        var char = nextChar();
+
         do {
-            if (this.isOr(char)) {
-                node = or();
+            var lexeme = lexAnalyzer.lexeme();
+
+            if (lexAnalyzer.isSymbol()) {
+                node = new RegexParser().parse(getSymbol(lexeme).data);
+            } else if (this.isOr(lexeme)) {
+                node = or(lexAnalyzer);
 
                 addNode = true;
-            } else if (this.isAdd(char)) {
-                node = add();
+            } else if (this.isAdd(lexeme)) {
+                node = add(lexAnalyzer);
 
                 addNode = true;
-            } else if (this.isKleene(char)) {
-                node = kleene();
+            } else if (this.isKleene(lexeme)) {
+                node = kleene(lexAnalyzer);
 
                 addNode = true;
             } else {
-                stack.push(char);
+                stack.push(lexeme);
             }
 
             if (addNode) {
@@ -240,9 +317,8 @@ function RegexParser() {
                 addNode = false;
             }
 
-            char = nextChar();
-        } while (char);
-
+        } while(lexAnalyzer.next());
+        
         tree = parent;
 
         return tree;
@@ -260,25 +336,28 @@ function RegexParser() {
         return charIndex < str.length ? str[charIndex++] : false;
     }
 
-    function or() {
+    function or(lexAnalyzer) {
+        lexAnalyzer.next();
+        
         return new TreeNode('or', {
             opn1 : stack.shift(),
-            opn2 : nextChar()
+            opn2 : lexAnalyzer.lexeme()
         });
     }
 
-    function add() {
+    function add(lexAnalyzer) {
         return new TreeNode('add', {
             opn1 : stack.shift()
         })
     }
 
-    function kleene() {
+    function kleene(lexAnalyzer) {
         return new TreeNode('kleene', {
             opn1 : stack.shift()
         })
     }
 }
+
 
 extend(RegexParser.prototype, {
     /**
@@ -473,12 +552,13 @@ function NFA() {
     }
 }
 
-var lexAnalyzer = new LexicalAnalyzer('a|b|cdmpp*');
-var regex = lexAnalyzer.analyze();
+var regex = new LexicalAnalyzer('a|b');
+regexStr = regex.analyze();
 
 var parser = new RegexParser();
-var syntaxTree = parser.parse(regex);
-syntaxTree.print();
+var syntaxTree = parser.parse(regexStr);
+console.log(syntaxTree);
+//syntaxTree.print();
 
 /*
  * var nfa = new NFA(); nfa.createFromSyntaxTree(syntaxTree);
